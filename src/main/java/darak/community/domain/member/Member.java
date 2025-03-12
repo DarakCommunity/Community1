@@ -1,7 +1,7 @@
 package darak.community.domain.member;
 
 import darak.community.domain.BaseEntity;
-import darak.community.dto.MemberUpdateDTO;
+import darak.community.exception.PasswordFailedExceededException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -9,7 +9,6 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
-import jakarta.validation.constraints.NotEmpty;
 import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
@@ -24,10 +23,11 @@ public class Member extends BaseEntity {
     @Column(name = "member_id")
     private Long id;
 
+    private String loginId;
+
     @Embedded
     private MemberPassword password;
 
-    @NotEmpty
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -43,7 +43,8 @@ public class Member extends BaseEntity {
     // Builder 패턴의 단점 : 필수값을 놓칠 수 있음
     // -> NonNull을 붙여준다.
     @Builder
-    public Member(String name, String password, String phone, LocalDate birth, String email) {
+    public Member(String loginId, String name, String password, String phone, LocalDate birth, String email) {
+        this.loginId = loginId;
         this.name = name;
         this.password = new MemberPassword(password);
         this.phone = phone;
@@ -52,24 +53,59 @@ public class Member extends BaseEntity {
     }
 
     // 회원 정보 수정 메서드
-    public void updateMember(MemberUpdateDTO memberUpdateDTO) {
-        this.name = memberUpdateDTO.getName();
-        this.password = new MemberPassword(memberUpdateDTO.getPassword());
-        this.email = memberUpdateDTO.getEmail();
-        this.phone = memberUpdateDTO.getPhone();
-        this.birth = memberUpdateDTO.getBirth();
+    public void updateMember(Member editInfoMember) {
+        updatePassword(editInfoMember);
+        updateName(editInfoMember);
+        updatePhone(editInfoMember);
+        updateBirth(editInfoMember);
+        updateEmail(editInfoMember);
     }
 
-    public boolean isMatchedPassword(final String rawPassword) {
+    private void updateEmail(Member editInfoMember) {
+        if (editInfoMember.email != null) {
+            this.email = editInfoMember.email;
+        }
+    }
+
+    private void updateBirth(Member editInfoMember) {
+        if (editInfoMember.birth != null) {
+            this.birth = editInfoMember.birth;
+        }
+    }
+
+    private void updatePhone(Member editInfoMember) {
+        if (editInfoMember.phone != null) {
+            this.phone = editInfoMember.phone;
+        }
+    }
+
+    private void updateName(Member editInfoMember) {
+        if (editInfoMember.name != null) {
+            this.name = editInfoMember.name;
+        }
+    }
+
+    private void updatePassword(Member editInfoMember) {
+        if (editInfoMember.password != null) {
+            this.password = editInfoMember.password;
+        }
+    }
+
+    public boolean isMatchedPassword(final String rawPassword) throws PasswordFailedExceededException {
         return password.isMatched(rawPassword);
     }
 
-    public void changePassword(final String newPassword, final String oldPassword) {
+    public void changePassword(final String newPassword, final String oldPassword)
+            throws PasswordFailedExceededException {
         password.changePassword(newPassword, oldPassword);
     }
 
     public boolean isMatchedPhone(String phone) {
         return this.phone.equals(phone);
+    }
+
+    public boolean isPasswordExpired() {
+        return password.isPasswordExpired();
     }
 
 }
